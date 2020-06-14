@@ -1,2 +1,2 @@
 # project-pineapple
-Repository for entry to https://github.com/balajis/twitter-export
+This repository serves to contain the entry for [this bounty](https://github.com/balajis/twitter-export). 

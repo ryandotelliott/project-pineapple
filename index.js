@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 
+// Setup
 const Twit = require("twit");
 const sqlite3 = require("sqlite3").verbose();
 require("dotenv").config();
+
+let db = new sqlite3.Database("db.db");
 
 let T = new Twit({
   consumer_key: process.env.CONSUMER_KEY,
@@ -15,6 +18,18 @@ let T = new Twit({
 
 T.get("followers/ids", { screen_name: "balajis" }, (err, data, response) => {
   console.log(data);
+});
+
+T.post("direct_messages/events/new", {
+  event: {
+    type: "message_create",
+    message_create: {
+      target: { recipient_id: "1132031758986371077" },
+      message_data: {
+        text: "Hello World!",
+      },
+    },
+  },
 });
 
 process.on("SIGTERM", () => {

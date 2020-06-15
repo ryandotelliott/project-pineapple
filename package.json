@@ -15,5 +15,10 @@
   "bugs": {
     "url": "https://github.com/DeveloperRyan/project-pineapple/issues"
   },
-  "homepage": "https://github.com/DeveloperRyan/project-pineapple#readme"
+  "homepage": "https://github.com/DeveloperRyan/project-pineapple#readme",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "sqlite3": "^4.2.0",
+    "twit": "^2.2.11"
+  }
 }

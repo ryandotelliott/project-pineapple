@@ -1,6 +1,6 @@
 {
   "name": "project-pineapple",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Open source twitter script to allow a user to export their followers easily.",
   "main": "index.js",
   "scripts": {
@@ -17,7 +17,10 @@
   },
   "homepage": "https://github.com/DeveloperRyan/project-pineapple#readme",
   "dependencies": {
+    "ansi-colors": "^4.1.1",
+    "asciiart-logo": "^0.2.6",
     "dotenv": "^8.2.0",
+    "inquirer": "^7.2.0",
     "sqlite3": "^4.2.0",
     "twit": "^2.2.11"
   }

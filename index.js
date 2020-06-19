@@ -9,6 +9,14 @@ const { error } = require("console");
 const { ENETUNREACH } = require("constants");
 const sqlite3 = require("sqlite3").verbose();
 
+// File Check / Initial Setup
+let config;
+const path = "./config.json";
+
+let T; // Twit instance
+let profile; // Authenticated user profile
+let followers;
+
 async function main() {
   // CLI Splash
   console.log(
@@ -20,14 +28,6 @@ async function main() {
       .right(pjson.version)
       .render()
   );
-
-  // File Check / Initial Setup
-  let config;
-  const path = "./config.json";
-
-  let T; // Twit instance
-  let profile; // Authenticated user profile
-  let followers;
 
   let db;
 
@@ -188,12 +188,49 @@ async function menu() {
   const menuAnswer = await inquirer.prompt(menuQuestion)
   if (menuAnswer.menuSelection == 'Export Followers to .CSV') {
     await exportToCSV();
-    console.log(c.yellowBright('Followers exported to .csv successfully'))
+  } else if (menuAnswer.menuSelection == 'Sync / Download Followers Database') {
+    await syncFollowers();
   }
 }
 
 async function syncFollowers() {
-  // TODO
+  let response = await new Promise((resolve, reject) => T.get(
+    "followers/ids",
+    (err, data, response) => {
+      if (err) reject(err);
+      resolve(data);
+    }
+  ))
+
+  const dbPath = "followers.db"
+  const db = new sqlite3.Database(dbPath)
+  db.exec("BEGIN TRANSACTION;");
+  for (id of response['ids']) {
+    db.run('INSERT INTO followers (ID) VALUES (' + id + ');');
+  }
+  db.run("COMMIT;")
+
+  let configJson = await new Promise((resolve, reject) => {
+    fs.readFile('./config.json', (err, jsonString) => {
+      if (err) {
+        reject(err);
+      }
+      let jsonObj = JSON.parse(jsonString);
+      resolve(jsonObj);
+    })
+  })
+
+  configJson['last_updated'] = Date.now();
+
+  try {
+    fs.writeFile('./config.json', JSON.stringify(configJson), (err) => {
+      if (err) throw err;
+    })
+  } catch (err) {
+    console.error(err);
+  }
+
+  console.log(c.greenBright('Followers synced successfully'))
 }
 
 async function exportToCSV() {
@@ -219,6 +256,7 @@ async function exportToCSV() {
         writeStream.write(csvLine)
       }
       writeStream.end();
+      console.log(c.greenBright('Followers exported to .csv successfully'))
       resolve(rows)
     } catch (err) {
       reject(err)

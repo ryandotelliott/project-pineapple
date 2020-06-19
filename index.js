@@ -5,6 +5,8 @@ const c = require("ansi-colors");
 const logo = require("asciiart-logo");
 const inquirer = require("inquirer");
 const Twit = require("twit");
+const { error } = require("console");
+const { ENETUNREACH } = require("constants");
 const sqlite3 = require("sqlite3").verbose();
 
 async function main() {
@@ -25,6 +27,9 @@ async function main() {
 
   let T; // Twit instance
   let profile; // Authenticated user profile
+  let followers;
+
+  let db;
 
   let firstRunQuestions = [
     {
@@ -69,7 +74,8 @@ async function main() {
           CONSUMER_KEY: answers.consumer_key,
           CONSUMER_SECRET: answers.consumer_secret,
           ACCESS_TOKEN: answers.access_token,
-          ACCESS_TOKEN_SECRET: answers.access_token_secret
+          ACCESS_TOKEN_SECRET: answers.access_token_secret,
+          last_updated: Date.now()
         });
 
         try {
@@ -81,8 +87,14 @@ async function main() {
           console.error(err);
         }
 
-        menu();
+        try {
+          await loadDB();
+        } catch (err) {
+          console.log(c.red('Unable to open SQLite database. Please restart and try again.'))
+          process.exit(1)
+        }
 
+        menu();
       } catch (err) {
         console.log(c.red('Error: Unable to authenticate. Please restart and try again'));
         console.error(err)
@@ -101,7 +113,21 @@ async function main() {
 
       try {
         profile = await authenticate(T);
-        console.log(c.green("Successfully authenicated: " + profile.screen_name));
+        console.log(c.greenBright("Successfully authenticated: " + profile.screen_name));
+
+        try {
+          await loadDB();
+        } catch (err) {
+          console.log(c.red('Unable to open SQLite database. Please restart and try again.'))
+          process.exit(1)
+        }
+
+        followers = await getDownloadedFollowers();
+
+        console.log(c.green(followers.length + ' / ' + profile.followers_count + ' total followers downloaded.'));
+
+        let date = new Date(parseInt(config.last_updated));
+        console.log(c.yellow('Last synced: ' + date.toString()));
 
         menu();
       } catch (err) {
@@ -116,7 +142,6 @@ async function main() {
     console.error(err);
     process.exit(1)
   }
-
 }
 
 function authenticate(T) {
@@ -129,6 +154,30 @@ function authenticate(T) {
   ))
 }
 
+async function loadDB() {
+  const dbPath = "followers.db"
+  if (fs.existsSync(dbPath)) {
+    console.log(c.green("Followers database found. Loading"))
+    const db = new sqlite3.Database(dbPath)
+    const rows = await new Promise(resolve => db.all("SELECT * FROM followers", (err, rows) => resolve(rows)))
+    db.close()
+    return db
+  }
+  console.log(c.yellow("Followers database not found. Creating..."))
+  const db = new sqlite3.Database(dbPath)
+  db.close()
+  console.log(c.green('Followers database created successfully.'))
+  return db;
+}
+
+async function getDownloadedFollowers() {
+  const dbPath = "followers.db"
+  const db = new sqlite3.Database(dbPath)
+  const rows = await new Promise(resolve => db.all("SELECT * FROM followers", (err, rows) => resolve(rows)))
+  db.close()
+  return rows
+}
+
 async function menu() {
   let menuQuestion = [{
     type: 'list',
@@ -137,7 +186,10 @@ async function menu() {
     choices: ['Sync / Download Followers Database', 'Export Followers to .CSV', 'DM Followers']
   }]
   const menuAnswer = await inquirer.prompt(menuQuestion)
-  console.log(menuAnswer);
+  if (menuAnswer.menuSelection == 'Export Followers to .CSV') {
+    await exportToCSV();
+    console.log(c.yellowBright('Followers exported to .csv successfully'))
+  }
 }
 
 async function syncFollowers() {
@@ -145,7 +197,33 @@ async function syncFollowers() {
 }
 
 async function exportToCSV() {
-  // TODO
+  return new Promise(async (resolve, reject) => {
+    try {
+
+      let writeStream;
+      try {
+        writeStream = fs.createWriteStream('./followers.csv');
+      } catch (err) {
+        reject(err)
+      }
+
+      const dbPath = "followers.db";
+      const db = new sqlite3.Database(dbPath)
+      const rows = await new Promise(resolve => db.all("SELECT * FROM followers", (err, rows) => resolve(rows)))
+      for (row of rows) {
+        let csvLine = ''
+        for (key in row) {
+          csvLine += row[key] + ','
+        }
+        csvLine += '\n'
+        writeStream.write(csvLine)
+      }
+      writeStream.end();
+      resolve(rows)
+    } catch (err) {
+      reject(err)
+    }
+  })
 }
 
 async function DMFollowers() {
@@ -153,8 +231,6 @@ async function DMFollowers() {
 }
 
 main()
-
-// let db = new sqlite3.Database("db.db");
 
 // T.get(
 //   "followers/ids",

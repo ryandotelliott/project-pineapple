@@ -2,3 +2,5 @@ node_modules/
 .env
 .db
 config.json
+followers.csv
+followers.db

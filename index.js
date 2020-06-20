@@ -93,8 +93,10 @@ async function main() {
           console.log(c.red('Unable to open SQLite database. Please restart and try again.'))
           process.exit(1)
         }
+        do {
+          await menu();
+        } while (true);
 
-        menu();
       } catch (err) {
         console.log(c.red('Error: Unable to authenticate. Please restart and try again'));
         console.error(err)
@@ -127,9 +129,12 @@ async function main() {
         console.log(c.green(followers.length + ' / ' + profile.followers_count + ' total followers downloaded.'));
 
         let date = new Date(parseInt(config.last_updated));
-        console.log(c.yellow('Last synced: ' + date.toString()));
+        console.log(c.yellow('Last synced: ' + date.toString() + '\n'));
 
-        menu();
+        do {
+          await menu();
+        } while (true);
+
       } catch (err) {
         // Unable to authenticate
         console.log(c.red('Error: Unable to authenticate. Please check config.json and try again.'));
@@ -185,12 +190,19 @@ async function menu() {
     message: 'What would you like to do?:',
     choices: ['Sync / Download Followers Database', 'Export Followers to .CSV', 'DM Followers']
   }]
-  const menuAnswer = await inquirer.prompt(menuQuestion)
-  if (menuAnswer.menuSelection == 'Export Followers to .CSV') {
-    await exportToCSV();
-  } else if (menuAnswer.menuSelection == 'Sync / Download Followers Database') {
-    await syncFollowers();
-  }
+  return new Promise(async (resolve, reject) => {
+    const menuAnswer = await inquirer.prompt(menuQuestion)
+    if (menuAnswer.menuSelection == 'Export Followers to .CSV') {
+      await exportToCSV();
+      resolve()
+    } else if (menuAnswer.menuSelection == 'Sync / Download Followers Database') {
+      await syncFollowers();
+      resolve()
+    } else if (menuAnswer.menuSelection == 'DM Followers') {
+      await DMFollowers();
+      resolve()
+    }
+  })
 }
 
 async function syncFollowers() {
@@ -230,12 +242,59 @@ async function syncFollowers() {
     console.error(err);
   }
 
-  console.log(c.greenBright('Followers synced successfully'))
+  console.log(c.greenBright('Followers synced successfully' + '\n'))
 }
 
 async function exportToCSV() {
+  let csvOptions = [
+    {
+      type: 'checkbox',
+      name: 'columns',
+      message: 'Exported Columns',
+      choices: [
+        {
+          name: 'id'
+        },
+        {
+          name: 'screen_name'
+        },
+        {
+          name: 'location'
+        },
+        {
+          name: 'bio'
+        },
+        {
+          name: 'followers'
+        },
+        {
+          name: 'friends'
+        },
+        {
+          name: 'verified'
+        },
+        {
+          name: 'following'
+        }
+      ]
+    },
+  ]
+
+
   return new Promise(async (resolve, reject) => {
     try {
+
+      const columnsToExport = await inquirer.prompt(csvOptions)
+      let sqlColumns = '';
+      if (columnsToExport.columns.length > 0) {
+        for (i in columnsToExport.columns) {
+          sqlColumns += columnsToExport.columns[i] + ', ';
+        }
+        sqlColumns = sqlColumns.substring(0, sqlColumns.length - 2);
+      } else {
+        console.log(c.yellow('Export cancelled.' + '\n'))
+        resolve()
+      }
 
       let writeStream;
       try {
@@ -246,7 +305,7 @@ async function exportToCSV() {
 
       const dbPath = "followers.db";
       const db = new sqlite3.Database(dbPath)
-      const rows = await new Promise(resolve => db.all("SELECT * FROM followers", (err, rows) => resolve(rows)))
+      const rows = await new Promise(resolve => db.all("SELECT " + sqlColumns + " FROM followers;", (err, rows) => { if (err) { reject(err); } resolve(rows) }))
       for (row of rows) {
         let csvLine = ''
         for (key in row) {
@@ -256,7 +315,7 @@ async function exportToCSV() {
         writeStream.write(csvLine)
       }
       writeStream.end();
-      console.log(c.greenBright('Followers exported to .csv successfully'))
+      console.log(c.greenBright('Followers exported to .csv successfully' + '\n'))
       resolve(rows)
     } catch (err) {
       reject(err)
@@ -266,29 +325,41 @@ async function exportToCSV() {
 
 async function DMFollowers() {
   // TODO
+  // compose message
+  // select who to send it to
+  // send and add nice little progress bar (only 1000 DMs sent a day)
+
+  let message;
+
+  let composeMessage = [
+    {
+      type: 'editor',
+      name: 'editor',
+      message: 'Compose Message',
+    }
+  ]
+
+  const messageAnswer = await inquirer.prompt(composeMessage);
+
+  new Promise((resolve, reject) => {
+    T.post("direct_messages/events/new", {
+      event: {
+        type: "message_create",
+        message_create: {
+          target: { recipient_id: "3225298576" },
+          message_data: {
+            text: message,
+          },
+        },
+      },
+    }, (err, data, response) => {
+      if (err) reject(err);
+      resolve(data);
+    });
+  })
 }
 
 main()
-
-// T.get(
-//   "followers/ids",
-//   { screen_name: process.env.USER_SCREENNAME },
-//   (err, data, response) => {
-//     console.log(data);
-//   }
-// );
-
-// T.post("direct_messages/events/new", {
-//   event: {
-//     type: "message_create",
-//     message_create: {
-//       target: { recipient_id: "1132031758986371077" },
-//       message_data: {
-//         text: "Hello World!",
-//       },
-//     },
-//   },
-// });
 
 process.on("SIGTERM", () => {
   console.info("SIGTERM signal received.");

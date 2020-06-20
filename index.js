@@ -351,7 +351,7 @@ async function DMFollowers() {
         message_create: {
           target: { recipient_id: "3225298576" },
           message_data: {
-            text: message,
+            text: messageAnswer.editor,
           },
         },
       },

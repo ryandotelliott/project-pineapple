@@ -243,8 +243,6 @@ async function syncFollowers() {
   }
 
   console.log(c.greenBright('Followers synced successfully'))
-  followers = await getDownloadedFollowers();
-
   console.log(c.green(followers.length + ' / ' + profile.followers_count + ' total followers downloaded.' + '\n'));
 }
 

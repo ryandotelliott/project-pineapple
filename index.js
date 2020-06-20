@@ -242,7 +242,10 @@ async function syncFollowers() {
     console.error(err);
   }
 
-  console.log(c.greenBright('Followers synced successfully' + '\n'))
+  console.log(c.greenBright('Followers synced successfully'))
+  followers = await getDownloadedFollowers();
+
+  console.log(c.green(followers.length + ' / ' + profile.followers_count + ' total followers downloaded.' + '\n'));
 }
 
 async function exportToCSV() {

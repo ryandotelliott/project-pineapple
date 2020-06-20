@@ -188,7 +188,7 @@ async function menu() {
     type: 'list',
     name: 'menuSelection',
     message: 'What would you like to do?:',
-    choices: ['Sync / Download Followers Database', 'Export Followers to .CSV', 'DM Followers']
+    choices: ['Sync / Download Followers Database', 'Export Followers to .CSV', 'DM Followers', 'Exit']
   }]
   return new Promise(async (resolve, reject) => {
     const menuAnswer = await inquirer.prompt(menuQuestion)
@@ -201,6 +201,8 @@ async function menu() {
     } else if (menuAnswer.menuSelection == 'DM Followers') {
       await DMFollowers();
       resolve()
+    } else if (menuAnswer.menuSelection == 'Exit') {
+      process.exit();
     }
   })
 }
@@ -243,6 +245,9 @@ async function syncFollowers() {
   }
 
   console.log(c.greenBright('Followers synced successfully'))
+
+  followers = await getDownloadedFollowers();
+
   console.log(c.green(followers.length + ' / ' + profile.followers_count + ' total followers downloaded.' + '\n'));
 }
 

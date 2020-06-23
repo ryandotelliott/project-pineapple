@@ -186,6 +186,19 @@ async function loadDB() {
   }
   console.log(c.yellow("Followers database not found. Creating..."))
   const db = new sqlite3.Database(dbPath)
+  db.run('CREATE TABLE "followers" (' +
+    '"PK"	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,' +
+    '"id"	INTEGER,' +
+    '"screen_name"	TEXT,' +
+    '"location"	TEXT,' +
+    '"bio"	TEXT,' +
+    '"followers"	INTEGER,' +
+    '"friends"	INTEGER,' +
+    '"verified"	TEXT,' +
+    '"following"	TEXT,' +
+    '"profile_image_url"	TEXT' +
+    ')'
+  )
   db.close()
   console.log(c.green('Followers database created successfully.'))
   return db;

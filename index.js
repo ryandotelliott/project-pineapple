@@ -5,9 +5,9 @@ const c = require("ansi-colors");
 const logo = require("asciiart-logo");
 const inquirer = require("inquirer");
 const Twit = require("twit");
-const { error } = require("console");
-const { ENETUNREACH } = require("constants");
 const sqlite3 = require("sqlite3").verbose();
+const ProgressBar = require('progress');
+const { resolve } = require("path");
 
 // File Check / Initial Setup
 let config;
@@ -17,6 +17,7 @@ let T; // Twit instance
 let profile; // Authenticated user profile
 let followers;
 
+// TODO Add login with twitter functionality
 async function main() {
   // CLI Splash
   console.log(
@@ -32,6 +33,15 @@ async function main() {
   let db;
 
   let firstRunQuestions = [
+    {
+      type: 'list',
+      name: 'firstRun',
+      message: 'How would you like to login?: ',
+      choices: ['Log in with Twitter', 'Advanced API Keys']
+    }
+  ]
+
+  let advancedSetup = [
     {
       type: "input",
       name: "consumer_key",
@@ -56,51 +66,57 @@ async function main() {
 
   try {
     if (!fs.existsSync(path)) {
-      const answers = await inquirer.prompt(firstRunQuestions);
-      T = new Twit({
-        consumer_key: answers.consumer_key,
-        consumer_secret: answers.consumer_secret,
-        access_token: answers.access_token,
-        access_token_secret: answers.access_token_secret,
-        timeout_ms: 60 * 1000, // optional HTTP request timeout to apply to all requests.
-        strictSSL: true, // optional - requires SSL certificates to be valid.
-      });
+      const firstRun = await inquirer.prompt(firstRunQuestions);
 
-      try {
-        profile = await authenticate(T);
-        console.log(c.green("Successfully authenicated: " + profile.screen_name));
-
-        let configData = JSON.stringify({
-          CONSUMER_KEY: answers.consumer_key,
-          CONSUMER_SECRET: answers.consumer_secret,
-          ACCESS_TOKEN: answers.access_token,
-          ACCESS_TOKEN_SECRET: answers.access_token_secret,
-          last_updated: Date.now()
+      if (firstRun.firstRun == 'Advanced API Keys') {
+        const answers = await inquirer.prompt(advancedSetup);
+        T = new Twit({
+          consumer_key: answers.consumer_key,
+          consumer_secret: answers.consumer_secret,
+          access_token: answers.access_token,
+          access_token_secret: answers.access_token_secret,
+          timeout_ms: 60 * 1000, // optional HTTP request timeout to apply to all requests.
+          strictSSL: true, // optional - requires SSL certificates to be valid.
         });
 
         try {
-          fs.writeFile('./config.json', configData, (err) => {
-            if (err) throw err;
-            console.log(c.green('Success! Data saved to config file.'))
-          })
-        } catch (err) {
-          console.error(err);
-        }
+          profile = await authenticate(T);
+          console.log(c.green("Successfully authenicated: " + profile.screen_name));
 
-        try {
-          await loadDB();
+          let configData = JSON.stringify({
+            CONSUMER_KEY: answers.consumer_key,
+            CONSUMER_SECRET: answers.consumer_secret,
+            ACCESS_TOKEN: answers.access_token,
+            ACCESS_TOKEN_SECRET: answers.access_token_secret,
+            last_updated: Date.now()
+          });
+
+          try {
+            fs.writeFile('./config.json', configData, (err) => {
+              if (err) throw err;
+              console.log(c.green('Success! Data saved to config file.'))
+            })
+          } catch (err) {
+            console.error(err);
+          }
+
+          try {
+            await loadDB();
+          } catch (err) {
+            console.log(c.red('Unable to open SQLite database. Please restart and try again.'))
+            process.exit(1)
+          }
+          do {
+            await menu();
+          } while (true);
+
         } catch (err) {
-          console.log(c.red('Unable to open SQLite database. Please restart and try again.'))
+          console.log(c.red('Error: Unable to authenticate. Please restart and try again'));
+          console.error(err)
           process.exit(1)
         }
-        do {
-          await menu();
-        } while (true);
-
-      } catch (err) {
-        console.log(c.red('Error: Unable to authenticate. Please restart and try again'));
-        console.error(err)
-        process.exit(1)
+      } else {
+        // log in with twitter
       }
     } else {
       let config = require("./config.json");
@@ -335,34 +351,114 @@ async function DMFollowers() {
   // select who to send it to
   // send and add nice little progress bar (only 1000 DMs sent a day)
 
-  let message;
-
-  let composeMessage = [
+  let selectEditor = [
     {
-      type: 'editor',
-      name: 'editor',
-      message: 'Compose Message',
+      type: 'list',
+      name: 'prefEditor',
+      message: 'How would you like to compose your message?:',
+      choices: ['Command Line', 'JSON import', 'Default Text Editor']
     }
   ]
 
-  const messageAnswer = await inquirer.prompt(composeMessage);
+  const preferedEditor = await inquirer.prompt(selectEditor);
 
-  new Promise((resolve, reject) => {
-    T.post("direct_messages/events/new", {
-      event: {
-        type: "message_create",
-        message_create: {
-          target: { recipient_id: "3225298576" },
-          message_data: {
-            text: messageAnswer.editor,
+  let message;
+
+  if (preferedEditor.prefEditor == 'Command Line') {
+
+    let messageInput = [
+      {
+        type: 'input',
+        name: 'message',
+        message: 'Please input your desired message:',
+      }
+    ]
+
+    const messageAnswer = await inquirer.prompt(messageInput);
+    message = messageAnswer.message;
+  } else if (preferedEditor.prefEditor == 'JSON import') {
+    // TODO: Add json import
+    message = 'Hello World! Currently testing an automated twitter DM program. Feel free to ignore.';
+  } else if (preferedEditor.prefEditor == 'Default Text Editor') {
+
+    let composeMessage = [
+      {
+        type: 'editor',
+        name: 'editor',
+        message: 'Compose Message',
+      }
+    ]
+
+    const messageAnswer = await inquirer.prompt(composeMessage);
+    message = messageAnswer.editor;
+  }
+
+  // TODO: Add handlebars parsing
+
+  // TODO: Add message preview and confirmation
+
+  console.log('\n');
+  console.log(c.magenta('Message: ') + message)
+  console.log('\n');
+
+  let messageConfirmation = [
+    {
+      type: 'confirm',
+      name: 'confirm',
+      message: 'Are you sure you would like to send this message?:'
+    }
+  ]
+
+  const confirmationAnswer = await inquirer.prompt(messageConfirmation);
+  if (!confirmationAnswer.confirm) {
+    console.log(c.yellow('DM followers cancelled.\n'))
+    resolve()
+    return
+  }
+
+  // change this to sorted / ranked followers
+  followers = await getDownloadedFollowers();
+
+
+  let bar = new ProgressBar(c.magenta('Sending [:bar] :percent :etas'), {
+    total: followers.length,
+    complete: '=',
+    incomplete: ' ',
+    width: 30
+  });
+
+  let success = 0;
+  let failed = 0;
+
+  for (i = 0; i < followers.length; i++) {
+    try {
+      await new Promise((resolve, reject) => {
+        T.post("direct_messages/events/new", {
+          event: {
+            type: "message_create",
+            message_create: {
+              target: { recipient_id: followers[i].id },
+              message_data: {
+                text: message,
+              },
+            },
           },
-        },
-      },
-    }, (err, data, response) => {
-      if (err) reject(err);
-      resolve(data);
-    });
-  })
+        }, (err, data, response) => {
+          if (err) {
+            failed += 1;
+            reject(err)
+          };
+          success += 1;
+          bar.tick()
+          resolve(data);
+        });
+      })
+    } catch (err) {
+      console.log(err)
+    }
+  }
+  console.log('\n');
+
 }
 
 main()

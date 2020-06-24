@@ -81,7 +81,7 @@ async function main() {
         });
 
         try {
-          fs.writeFileSync("./config.json", configData);
+          fs.writeFile("./config.json", configData);
           console.log(c.green("Data saved to config.json successfully."));
         } catch (err) {
           console.error(err);
@@ -432,6 +432,48 @@ async function DMFollowers() {
   // select who to send it to
   // send and add nice little progress bar (only 1000 DMs sent a day)
 
+  let sortingQuestion = [
+    {
+      type: "list",
+      name: "sortingOption",
+      message:
+        "Would you like to message all followers or a subset of followers?: ",
+      choices: ["All Followers", "Subset"],
+    },
+  ];
+
+  const sortOption = await inquirer.prompt(sortingQuestion);
+
+  let selectedFollowers;
+
+  if (sortOption.sortingOption == "All Followers") {
+    let availableColumns = [
+      { name: "id" },
+      { name: "screen_name" },
+      { name: "location" },
+      { name: "bio" },
+      { name: "followers" },
+      { name: "friends" },
+      { name: "verified" },
+      { name: "following" },
+      { name: "None / Continue" },
+    ];
+
+    let rankedColumn = [];
+
+    let sortingSelection = [
+      {
+        type: "list",
+        name: "list",
+        message: "Which column would you like to sort by first?: ",
+        choices: availableColumns,
+      },
+    ];
+
+    const firstColumn = await inquirer.prompt(sortingSelection);
+  } else if (sortOption.sortingOption == "Subset") {
+  }
+
   let selectEditor = [
     {
       type: "list",
@@ -501,10 +543,8 @@ async function DMFollowers() {
   }
 
   // change this to sorted / ranked followers
-  followers = await getDownloadedFollowers();
-
   let bar = new ProgressBar(c.magenta("Sending [:bar] :percent :etas"), {
-    total: followers.length,
+    total: selectedFollowers.length,
     complete: "=",
     incomplete: " ",
     width: 30,
@@ -513,7 +553,7 @@ async function DMFollowers() {
   let success = 0;
   let failed = 0;
 
-  for (i = 0; i < followers.length; i++) {
+  for (i = 0; i < selectedFollowers.length; i++) {
     try {
       await new Promise((resolve, reject) => {
         T.post(
@@ -522,7 +562,7 @@ async function DMFollowers() {
             event: {
               type: "message_create",
               message_create: {
-                target: { recipient_id: followers[i].id },
+                target: { recipient_id: selectedFollowers[i].id },
                 message_data: {
                   text: message,
                 },

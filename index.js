@@ -522,7 +522,9 @@ async function DMFollowers() {
       try {
         const rows = await new Promise((resolve, reject) =>
           db.all(
-            "SELECT * FROM followers ORDER BY " + SQLColumnsString + ";",
+            SQLColumnsString.length > 0
+              ? "SELECT * FROM followers ORDER BY " + SQLColumnsString + ";"
+              : "SELECT * FROM followers;",
             (err, rows) => {
               if (err) {
                 reject(err);

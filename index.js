@@ -491,8 +491,11 @@ async function DMFollowers() {
       ];
 
       let additionalColumns;
-      do {
+      while (true) {
         additionalColumns = await inquirer.prompt(sortingSelection);
+        if (additionalColumns.list == "None / Continue") {
+          break;
+        }
         availableColumns.splice(
           availableColumns.findIndex(
             (item) => item.name == additionalColumns.list
@@ -500,31 +503,39 @@ async function DMFollowers() {
           1
         );
         rankedColumns.push(firstColumn.list);
-      } while (additionalColumns.list != "None / Continue");
+      }
 
       let SQLColumnsString = "";
-      for (obj in rankedColumns) {
-        if (obj.name == "None / Continue") {
+      for (i in rankedColumns) {
+        if (rankedColumns[i] == "None / Continue") {
           continue;
         }
-        SQLColumnsString += obj.name + ", ";
+        SQLColumnsString += rankedColumns[i] + ", ";
       }
+      SQLColumnsString = SQLColumnsString.substring(
+        0,
+        SQLColumnsString.length - 2
+      );
 
       const dbPath = "followers.db";
       const db = new sqlite3.Database(dbPath);
-      const rows = await new Promise((resolve) =>
-        db.all(
-          "SELECT * FROM followers ORDER BY " + SQLColumnsString + ";",
-          (err, rows) => {
-            if (err) {
-              reject(err);
+      try {
+        const rows = await new Promise((resolve, reject) =>
+          db.all(
+            "SELECT * FROM followers ORDER BY " + SQLColumnsString + ";",
+            (err, rows) => {
+              if (err) {
+                reject(err);
+              }
+              resolve(rows);
             }
-            resolve(rows);
-          }
-        )
-      );
+          )
+        );
 
-      selectedFollowers = rows;
+        selectedFollowers = rows;
+      } catch (err) {
+        console.log(err);
+      }
     }
   } else if (sortOption.sortingOption == "Subset") {
   } else if (sortOption.sortingOption == "Cancel") {

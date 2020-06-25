@@ -1,6 +1,6 @@
 {
   "name": "project-pineapple",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Open source twitter script to allow a user to export their followers easily.",
   "main": "index.js",
   "scripts": {

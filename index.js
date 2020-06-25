@@ -81,7 +81,11 @@ async function main() {
         });
 
         try {
-          fs.writeFile("./config.json", configData);
+          fs.writeFile("./config.json", configData, (err) => {
+            if (err) {
+              throw err;
+            }
+          });
           console.log(c.green("Data saved to config.json successfully."));
         } catch (err) {
           console.error(err);
@@ -436,9 +440,8 @@ async function DMFollowers() {
     {
       type: "list",
       name: "sortingOption",
-      message:
-        "Would you like to message all followers or a subset of followers?: ",
-      choices: ["All Followers", "Subset"],
+      message: "Would you like to message all followers or a subset?: ",
+      choices: ["All Followers", "Subset", "Cancel"],
     },
   ];
 
@@ -459,7 +462,7 @@ async function DMFollowers() {
       { name: "None / Continue" },
     ];
 
-    let rankedColumn = [];
+    let rankedColumns = [];
 
     let sortingSelection = [
       {
@@ -469,9 +472,65 @@ async function DMFollowers() {
         choices: availableColumns,
       },
     ];
-
     const firstColumn = await inquirer.prompt(sortingSelection);
+
+    if (firstColumn.list != "None / Continue") {
+      availableColumns.splice(
+        availableColumns.findIndex((item) => item.name == firstColumn.list),
+        1
+      );
+      rankedColumns.push(firstColumn.list);
+
+      let sortingSelection = [
+        {
+          type: "list",
+          name: "list",
+          message: "Which column would you like to sort by next?: ",
+          choices: availableColumns,
+        },
+      ];
+
+      let additionalColumns;
+      do {
+        additionalColumns = await inquirer.prompt(sortingSelection);
+        availableColumns.splice(
+          availableColumns.findIndex(
+            (item) => item.name == additionalColumns.list
+          ),
+          1
+        );
+        rankedColumns.push(firstColumn.list);
+      } while (additionalColumns.list != "None / Continue");
+
+      let SQLColumnsString = "";
+      for (obj in rankedColumns) {
+        if (obj.name == "None / Continue") {
+          continue;
+        }
+        SQLColumnsString += obj.name + ", ";
+      }
+
+      const dbPath = "followers.db";
+      const db = new sqlite3.Database(dbPath);
+      const rows = await new Promise((resolve) =>
+        db.all(
+          "SELECT * FROM followers ORDER BY " + SQLColumnsString + ";",
+          (err, rows) => {
+            if (err) {
+              reject(err);
+            }
+            resolve(rows);
+          }
+        )
+      );
+
+      selectedFollowers = rows;
+    }
   } else if (sortOption.sortingOption == "Subset") {
+  } else if (sortOption.sortingOption == "Cancel") {
+    console.log(c.yellow("DM followers cancelled.\n"));
+    resolve();
+    return;
   }
 
   let selectEditor = [

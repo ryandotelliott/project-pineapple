@@ -7,7 +7,8 @@ const inquirer = require("inquirer");
 const Twit = require("twit");
 const sqlite3 = require("sqlite3").verbose();
 const ProgressBar = require("progress");
-const { resolve } = require("path");
+const Handlebars = require("handlebars");
+const { template } = require("handlebars");
 
 // File Check / Initial Setup
 let config;
@@ -678,8 +679,12 @@ async function DMFollowers() {
   }
 
   // TODO: Add handlebars parsing
+  // https://www.npmjs.com/package/handlebars
+  // Need to fill in handlebarPreviewData with examples
 
-  // TODO: Add message preview and confirmation
+  let handlebarPreviewTemplate = Handlebars.compile(message);
+  let handlebarPreviewData = {};
+  message = handlebarPreviewTemplate(handlebarPreviewData);
 
   console.log("\n");
   console.log(c.magenta("Message: ") + message);
@@ -700,7 +705,6 @@ async function DMFollowers() {
     return;
   }
 
-  // change this to sorted / ranked followers
   let bar = new ProgressBar(c.magentaBright("Sending [:bar] :percent :etas"), {
     total: selectedFollowers.length,
     complete: "=",
@@ -713,6 +717,17 @@ async function DMFollowers() {
 
   for (i = 0; i < selectedFollowers.length; i++) {
     try {
+      // TODO: fetch data from selectedFollower[i] and add it to handlebar data. This is the example given from"
+      // https://www.npmjs.com/package/handlebars
+      // var data = { "name": "Alan", "hometown": "Somewhere, TX", "kids": [{"name": "Jimmy", "age": "12"}, {"name": "Sally", "age": "4"}]};
+
+      // Question is: Could you just put the entire twitter profile object into the handlebardata, and support every
+      // data field?
+
+      let handlebarTemplate = Handlebars.compile(message);
+      let handlebarData = {};
+      message = handlebarTemplate(handlebarData);
+
       await new Promise((resolve, reject) => {
         T.post(
           "direct_messages/events/new",

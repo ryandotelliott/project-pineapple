@@ -219,7 +219,7 @@ async function getDownloadedFollowers() {
   const dbPath = "followers.db";
   const db = new sqlite3.Database(dbPath);
   const rows = await new Promise((resolve) =>
-    db.all("SELECT * FROM followers", (err, rows) => resolve(rows))
+    db.all("SELECT * FROM followers;", (err, rows) => resolve(rows))
   );
   db.close();
   return rows;
@@ -294,20 +294,107 @@ async function menu() {
 }
 
 async function syncFollowers() {
-  let response = await new Promise((resolve, reject) =>
-    T.get("followers/ids", (err, data, response) => {
-      if (err) reject(err);
-      resolve(data);
-    })
-  );
-
   const dbPath = "followers.db";
   const db = new sqlite3.Database(dbPath);
-  db.exec("BEGIN TRANSACTION;");
-  for (id of response["ids"]) {
-    db.run("INSERT INTO followers (ID) VALUES (" + id + ");");
-  }
-  db.run("COMMIT;");
+  await db.exec("DELETE FROM followers;");
+
+  let bar = new ProgressBar(c.magentaBright("Syncing [:bar] :percent :etas"), {
+    total: profile.followers_count,
+    complete: "=",
+    incomplete: " ",
+    width: 50,
+  });
+
+  let cursor = -1;
+  let response;
+  do {
+    response = await new Promise((resolve, reject) =>
+      T.get("followers/ids", { cursor: cursor }, (err, data, response) => {
+        if (err) reject(err);
+        resolve(data);
+      })
+    );
+
+    if (response.next_cursor != "0") {
+      cursor = response.next_cursor;
+    }
+
+    let counter = 0;
+    let idList = "";
+    let idLookupResponse;
+
+    for (id of response["ids"]) {
+      idList += id + ",";
+      counter += 1;
+      bar.tick();
+      if (counter == 100 || counter >= response["ids"].length) {
+        counter = 0;
+        idList = idList.substring(0, idList.length - 1);
+        idLookupResponse = await new Promise((resolve, reject) => {
+          T.post(
+            "users/lookup",
+            {
+              user_id: idList,
+            },
+            (err, data, response) => {
+              if (err) reject(err);
+              resolve(data);
+            }
+          );
+        });
+        idList = [];
+
+        try {
+          db.exec("BEGIN TRANSACTION;");
+          for (user of idLookupResponse) {
+            try {
+              let location = user.location ? user.location : "NULL";
+              let description = user.description ? user.description : "NULL";
+
+              db.run(
+                "INSERT INTO followers (id, screen_name, location, bio, followers, friends, verified, following, profile_image_url) VALUES (" +
+                  user.id +
+                  ", " +
+                  '"' +
+                  user.screen_name +
+                  '"' +
+                  ", " +
+                  '"' +
+                  location +
+                  '"' +
+                  ", " +
+                  '"' +
+                  description +
+                  '"' +
+                  ", " +
+                  user.followers_count +
+                  ", " +
+                  user.friends_count +
+                  ", " +
+                  '"' +
+                  user.verified +
+                  '"' +
+                  ", " +
+                  '"' +
+                  user.following +
+                  '"' +
+                  ", " +
+                  '"' +
+                  user.profile_image_url +
+                  '"' +
+                  ");"
+              );
+            } catch (err) {
+              console.log(err);
+            }
+          }
+          db.run("COMMIT;");
+        } catch (err) {
+          console.log(err);
+        }
+      }
+    }
+  } while (response.next_cursor != 0);
 
   let configJson = await new Promise((resolve, reject) => {
     fs.readFile("./config.json", (err, jsonString) => {
@@ -328,7 +415,6 @@ async function syncFollowers() {
   } catch (err) {
     console.error(err);
   }
-
   console.log(c.greenBright("Followers synced successfully"));
 
   followers = await getDownloadedFollowers();
@@ -615,11 +701,11 @@ async function DMFollowers() {
   }
 
   // change this to sorted / ranked followers
-  let bar = new ProgressBar(c.magenta("Sending [:bar] :percent :etas"), {
+  let bar = new ProgressBar(c.magentaBright("Sending [:bar] :percent :etas"), {
     total: selectedFollowers.length,
     complete: "=",
     incomplete: " ",
-    width: 30,
+    width: 50,
   });
 
   let success = 0;

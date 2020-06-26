@@ -601,6 +601,8 @@ async function DMFollowers() {
 			} catch (err) {
 				console.log(err);
 			}
+		} else {
+			selectedFollowers = getDownloadedFollowers();
 		}
 	} else if (sortOption.sortingOption == "Subset") {
 	} else if (sortOption.sortingOption == "Cancel") {
@@ -654,12 +656,6 @@ async function DMFollowers() {
 		return;
 	}
 
-	// TODO: Add handlebars parsing
-	// https://www.npmjs.com/package/handlebars
-	// Need to fill in handlebarPreviewData with examples
-
-	console.log(selectedFollowers);
-
 	let handlebarPreviewTemplate = Handlebars.compile(message);
 	let handlebarPreviewData = selectedFollowers[0];
 	let messagePreview = handlebarPreviewTemplate(handlebarPreviewData);
@@ -698,9 +694,6 @@ async function DMFollowers() {
 			let handlebarData = selectedFollowers[i];
 			message = handlebarTemplate(handlebarData);
 
-			console.log(selectedFollowers[i].screen_name);
-			console.log(message);
-
 			await new Promise((resolve, reject) => {
 				T.post(
 					"direct_messages/events/new",
@@ -708,7 +701,9 @@ async function DMFollowers() {
 						event: {
 							type: "message_create",
 							message_create: {
-								target: { recipient_id: selectedFollowers[i].id },
+								target: {
+									recipient_id: selectedFollowers[i],
+								},
 								message_data: {
 									text: message,
 								},
@@ -716,10 +711,20 @@ async function DMFollowers() {
 						},
 					},
 					(err, data, response) => {
-						if (err) {
+						if (err.code == "88") {
+							console.log("Rate limit reached, waiting 24 hours to continue.");
+							let continue_time = current_time + 87100; // ~24.2 hours  from now
+
+							while (Date.now() < continue_time) {
+								setTimeout(() => {}, 600000);
+							}
+
+							console.log("Continuing...");
+						} else if (err) {
 							failed += 1;
 							reject(err);
 						}
+
 						success += 1;
 						bar.tick();
 						resolve(data);

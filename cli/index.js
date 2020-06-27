@@ -286,28 +286,21 @@ async function syncFollowers() {
 	do {
 		try {
 			// This needs to become a function that calls itself on err 88.
-			response = await new Promise((resolve, reject) =>
-				T.get(
-					"followers/ids",
-					{ cursor: cursor, count: 5000 },
-					async (err, data, response) => {
-						if (err) {
-							if (err["code"] == 88) {
-								// If there's a ratelimit, wait it out.
-								console.log("Rate limit reached: Waiting...");
-								await wait(930000);
-								console.log("Waiting complete");
-							} else reject(err);
-						}
-						console.log(data);
-						resolve(data);
-					}
-				)
+			response = await withRateLimit(
+				() =>
+					asyncGetT("followers/ids", {
+						cursor: cursor,
+						count: 5000,
+					}),
+				{
+					rateLimitPath: (data) => data.resources.users["/users/lookup"],
+				}
 			);
 		} catch (err) {
 			console.log(err);
 		}
 
+		console.log(response);
 		if (response.next_cursor != "0") {
 			cursor = response.next_cursor;
 		}
@@ -766,4 +759,35 @@ async function wait(ms) {
 	return new Promise((resolve) => {
 		setTimeout(resolve, ms);
 	});
+}
+
+async function withRateLimit(f, { rateLimitPath }) {
+	try {
+		return await f();
+	} catch (err) {
+		if (err.code === 88) {
+			console.log("");
+			const data = await asyncGetT("application/rate_limit_status");
+			const resolvesIn = calculateResolutionTime(rateLimitPath(data));
+			await wait(resolvesIn);
+
+			return withRateLimit(f, { rateLimitPath });
+		} else {
+			// not a rate limit issue, bubble up the error
+			throw err;
+		}
+	}
+}
+
+async function asyncGetT(path, params) {
+	return await new Promise((resolve, reject) =>
+		T.get(path, params, (err, data, response) => {
+			if (err) reject(err);
+			resolve(data);
+		})
+	);
+}
+
+function calculateResolutionTime(path) {
+	return path.reset - Date.now() / 1000;
 }

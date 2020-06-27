@@ -280,7 +280,7 @@ async function menu() {
 async function syncFollowers() {
 	const dbPath = "followers.db";
 	const db = new sqlite3.Database(dbPath);
-	await db.exec("DELETE FROM followers;");
+	db.exec("DELETE FROM followers;");
 
 	let bar = new ProgressBar(c.magentaBright("Syncing [:bar] :percent :etas"), {
 		total: profile.followers_count,
@@ -292,12 +292,26 @@ async function syncFollowers() {
 	let cursor = -1;
 	let response;
 	do {
-		response = await new Promise((resolve, reject) =>
-			T.get("followers/ids", { cursor: cursor }, (err, data, response) => {
-				if (err) reject(err);
-				resolve(data);
-			})
-		);
+		try {
+			response = await new Promise((resolve, reject) =>
+				T.get(
+					"followers/ids",
+					{ cursor: cursor, count: 5000 },
+					async (err, data, response) => {
+						if (err) {
+							if (err["code"] == 88) {
+								console.log("Rate limit reached: Waiting...");
+								await wait(5000);
+								console.log("Waiting complete");
+							} else reject(err);
+						}
+						resolve(data);
+					}
+				)
+			);
+		} catch (err) {
+			console.log(err);
+		}
 
 		if (response.next_cursor != "0") {
 			cursor = response.next_cursor;
@@ -710,19 +724,23 @@ async function DMFollowers() {
 							},
 						},
 					},
-					(err, data, response) => {
-						if (err.code == "88") {
-							console.log("Rate limit reached, waiting 24 hours to continue.");
-							let continue_time = current_time + 87100; // ~24.2 hours  from now
+					async (err, data, response) => {
+						if (err) {
+							if (err["code"] == 88) {
+								console.log("Rate limit reached, waiting 24 hours to continue.");
+								let continue_time = current_time + 87100; // ~24.2 hours  from now
 
-							while (Date.now() < continue_time) {
-								setTimeout(() => {}, 600000);
+								while (Date.now() < continue_time) {
+									await wait(1800000); // Wait 30 minutes
+									console.log(
+										`${continue_time - Date.now() * 60} minutes remaining`
+									);
+								}
+								console.log("Continuing...");
+							} else {
+								failed += 1;
+								reject(err);
 							}
-
-							console.log("Continuing...");
-						} else if (err) {
-							failed += 1;
-							reject(err);
 						}
 
 						success += 1;
@@ -745,3 +763,9 @@ process.on("SIGTERM", () => {
 	console.info("Closing sqlite db");
 	db.close();
 });
+
+async function wait(ms) {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
+}

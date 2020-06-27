@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>New Campaign</title>
+		<link rel="stylesheet" href="style.css" />
+	</head>
+
+	<body>
+		<div class="content-container">
+			<div id="fade-background"></div>
+
+			<div class="sidebar-container">
+				<div class="nav-info">
+					<img src="#" />
+					<div id="user-info">
+						<p id="user-name">Name</p>
+						<p id="user-handle">@Handle</p>
+					</div>
+				</div>
+
+				<div class="message-info">
+					<div id="message-limit-bar">
+						<div id="message-limit-progress"></div>
+					</div>
+					<p id="message-limit-text">Daily Messages: 0/1000</p>
+				</div>
+
+				<ul class="nav-items">
+					<a href="#">
+						<li class="nav-item">Dashboard</li>
+					</a>
+					<a href="#">
+						<li class="nav-item">Follower Database</li>
+					</a>
+					<a href="#">
+						<li class="nav-item selected">Campaigns</li>
+					</a>
+				</ul>
+
+				<a href="#" class="nav-item logout">Sign Out</a>
+			</div>
+
+			<div class="campaigns-container">
+				<div class="campaigns-search">
+					<input type="text" class="search-bar" placeholder="Search all campaigns" />
+					<button class="button _bg-dark" id="campaign-modal-button">
+						Start a Campaign
+					</button>
+				</div>
+
+				<div class="current-campaigns-container">
+					<h1 class="header-text">Current Campaigns</h1>
+					<div class="campaign-card">
+						<h2 class="title">Card Name</h2>
+						<div class="card-items">
+							<p class="card-item">
+								Messages Sent<span class="card-item-result">100</span>
+							</p>
+							<p class="card-item">
+								Link Clicks<span class="card-item-result">100</span>
+							</p>
+							<p class="card-item">
+								Sign Ups<span class="card-item-result">100</span>
+							</p>
+							<p class="card-item">
+								Run Time<span class="card-item-result">100</span>
+							</p>
+							<p class="card-item">
+								Progress<span class="card-item-result">100</span>
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="past-campaigns-container">
+					<h1 class="header-text">Past Campaigns</h1>
+				</div>
+			</div>
+
+			<div id="new-campaign-modal" class="_column">
+				<h2 class="title">New Campaign</h2>
+
+				<h3 class="subtitle _margin-15-t">
+					Prioritization <span class="info-text">(Drag to reorder)</span>
+				</h3>
+				<ul class="modal-section _column" id="priority-list">
+					<li class="sortable" draggable="true" data-id="1">Number of followers</li>
+					<li class="sortable" draggable="true" data-id="2">Number of following</li>
+					<li class="sortable" draggable="true" data-id="3">Number of tweets</li>
+					<li class="sortable" draggable="true" data-id="4">Recently tweeted</li>
+					<li class="sortable" draggable="true" data-id="5">Verified</li>
+				</ul>
+
+				<h3 class="subtitle _margin-15-t _margin-15-b">Message</h3>
+				<textarea id="message-input" class="_margin-15-b"></textarea>
+
+				<button class="button _bg-dark _margin-15-t" id="campaign-launch-button">
+					Launch Campaign
+				</button>
+			</div>
+		</div>
+		<script src="../modules/campaignRenderer.js"></script>
+	</body>
+</html>

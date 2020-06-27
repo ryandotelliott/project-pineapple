@@ -56,6 +56,7 @@ async function main() {
 	];
 
 	try {
+		// If a config doesn't exist, request the user info
 		if (!fs.existsSync(path)) {
 			const answers = await inquirer.prompt(advancedSetup);
 			T = new Twit({
@@ -182,6 +183,7 @@ async function loadDB() {
 		db.close();
 		return db;
 	}
+
 	console.log(c.yellow("Followers database not found. Creating..."));
 	const db = new sqlite3.Database(dbPath);
 	db.run(
@@ -201,16 +203,6 @@ async function loadDB() {
 	db.close();
 	console.log(c.green("Followers database created successfully.\n"));
 	return db;
-}
-
-async function getDownloadedFollowers() {
-	const dbPath = "followers.db";
-	const db = new sqlite3.Database(dbPath);
-	const rows = await new Promise((resolve) =>
-		db.all("SELECT * FROM followers;", (err, rows) => resolve(rows))
-	);
-	db.close();
-	return rows;
 }
 
 async function menu() {
@@ -293,6 +285,7 @@ async function syncFollowers() {
 	let response;
 	do {
 		try {
+			// This needs to become a function that calls itself on err 88.
 			response = await new Promise((resolve, reject) =>
 				T.get(
 					"followers/ids",
@@ -300,11 +293,13 @@ async function syncFollowers() {
 					async (err, data, response) => {
 						if (err) {
 							if (err["code"] == 88) {
+								// If there's a ratelimit, wait it out.
 								console.log("Rate limit reached: Waiting...");
-								await wait(5000);
+								await wait(930000);
 								console.log("Waiting complete");
 							} else reject(err);
 						}
+						console.log(data);
 						resolve(data);
 					}
 				)
@@ -513,11 +508,6 @@ async function exportToCSV() {
 }
 
 async function DMFollowers() {
-	// TODO
-	// compose message
-	// select who to send it to
-	// send and add nice little progress bar (only 1000 DMs sent a day)
-
 	let sortingQuestion = [
 		{
 			type: "list",
@@ -621,7 +611,6 @@ async function DMFollowers() {
 	} else if (sortOption.sortingOption == "Subset") {
 	} else if (sortOption.sortingOption == "Cancel") {
 		console.log(c.yellow("DM followers cancelled.\n"));
-		resolve();
 		return;
 	}
 
@@ -666,7 +655,6 @@ async function DMFollowers() {
 		message = messageAnswer.editor;
 	} else if ("Cancel") {
 		console.log(c.yellow("DM followers cancelled.\n"));
-		resolve();
 		return;
 	}
 
@@ -763,6 +751,16 @@ process.on("SIGTERM", () => {
 	console.info("Closing sqlite db");
 	db.close();
 });
+
+async function getDownloadedFollowers() {
+	const dbPath = "followers.db";
+	const db = new sqlite3.Database(dbPath);
+	const rows = await new Promise((resolve) =>
+		db.all("SELECT * FROM followers;", (err, rows) => resolve(rows))
+	);
+	db.close();
+	return rows;
+}
 
 async function wait(ms) {
 	return new Promise((resolve) => {

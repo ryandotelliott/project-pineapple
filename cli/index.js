@@ -301,7 +301,6 @@ async function syncFollowers() {
 			console.log(err);
 		}
 
-		console.log(response);
 		if (response.next_cursor != "0") {
 			cursor = response.next_cursor;
 		}
@@ -520,7 +519,6 @@ async function DMFollowers() {
 			{ name: "id" },
 			{ name: "screen_name" },
 			{ name: "location" },
-			{ name: "bio" },
 			{ name: "followers" },
 			{ name: "friends" },
 			{ name: "verified" },
@@ -612,7 +610,15 @@ async function DMFollowers() {
 		];
 		let promptData = await inquirer.prompt(testUserPrompt);
 		let testUser = await screenNameToUser(promptData.message);
-		selectedFollowers = [testUser];
+		selectedFollowers = [
+			{
+				followers: testUser.followers_count,
+				friends: testUser.friends_count,
+				screen_name: testUser.screen_name,
+				location: testUser.location,
+				id: testUser.id_str,
+			},
+		];
 	} else if (sortOption.sortingOption == "Cancel") {
 		console.log(c.yellow("DM followers cancelled.\n"));
 		return;
@@ -785,7 +791,7 @@ async function manualRateLimit(f, manualCheckRate, totalTime) {
 }
 
 async function asyncGetT(path, params) {
-	await new Promise((resolve, reject) =>
+	return await new Promise((resolve, reject) =>
 		T.get(path, params, (err, data, response) => {
 			if (err) reject(err);
 			resolve(data);
@@ -794,7 +800,7 @@ async function asyncGetT(path, params) {
 }
 
 async function asyncPostT(path, params) {
-	await new Promise((resolve, reject) =>
+	return await new Promise((resolve, reject) =>
 		T.post(path, params, (err, data, response) => {
 			if (err) reject(err);
 			resolve(data);

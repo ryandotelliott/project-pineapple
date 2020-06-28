@@ -1,29 +1,29 @@
 {
-  "name": "project-pineapple",
-  "version": "0.1.12",
-  "description": "Open source twitter script to allow a user to export their followers easily.",
-  "main": "index.js",
-  "scripts": {
-    "start": "node ./index.js"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/DeveloperRyan/project-pineapple.git"
-  },
-  "author": "Ryan Elliott & Harris Rothaermel",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/DeveloperRyan/project-pineapple/issues"
-  },
-  "homepage": "https://github.com/DeveloperRyan/project-pineapple#readme",
-  "dependencies": {
-    "ansi-colors": "^4.1.1",
-    "asciiart-logo": "^0.2.6",
-    "dotenv": "^8.2.0",
-    "handlebars": "^4.7.6",
-    "inquirer": "^7.2.0",
-    "progress": "^2.0.3",
-    "sqlite3": "^4.2.0",
-    "twit": "^2.2.11"
-  }
+	"name": "project-pineapple",
+	"version": "0.1.15",
+	"description": "Open source twitter script to allow a user to export their followers easily.",
+	"main": "index.js",
+	"scripts": {
+		"start": "node ./index.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/DeveloperRyan/project-pineapple.git"
+	},
+	"author": "Ryan Elliott & Harris Rothaermel",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/DeveloperRyan/project-pineapple/issues"
+	},
+	"homepage": "https://github.com/DeveloperRyan/project-pineapple#readme",
+	"dependencies": {
+		"ansi-colors": "^4.1.1",
+		"asciiart-logo": "^0.2.6",
+		"dotenv": "^8.2.0",
+		"handlebars": "^4.7.6",
+		"inquirer": "^7.2.0",
+		"progress": "^2.0.3",
+		"sqlite3": "^4.2.0",
+		"twit": "^2.2.11"
+	}
 }

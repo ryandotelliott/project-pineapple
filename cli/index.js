@@ -103,8 +103,9 @@ async function main() {
 					await menu();
 				} while (true);
 			} catch (err) {
-				console.log(c.red("Error: Unable to authenticate. Please restart and try again"));
-				console.error(err);
+				console.log(
+					c.red("Error: Unable to authenticate. Please restart and try again.\n")
+				);
 				process.exit(1);
 			}
 		} else {
@@ -505,8 +506,8 @@ async function DMFollowers() {
 		{
 			type: "list",
 			name: "sortingOption",
-			message: "Would you like to message all followers or a subset?: ",
-			choices: ["All Followers", "Subset", "Cancel"],
+			message: "Would you like to message all followers or a test user?: ",
+			choices: ["All Followers", "Test User", "Cancel"],
 		},
 	];
 
@@ -599,9 +600,19 @@ async function DMFollowers() {
 				console.log(err);
 			}
 		} else {
-			selectedFollowers = getDownloadedFollowers();
+			selectedFollowers = await getDownloadedFollowers();
 		}
-	} else if (sortOption.sortingOption == "Subset") {
+	} else if (sortOption.sortingOption == "Test User") {
+		let testUserPrompt = [
+			{
+				type: "input",
+				name: "message",
+				message: "Please input the test users screen name:",
+			},
+		];
+		let promptData = await inquirer.prompt(testUserPrompt);
+		let testUser = await screenNameToUser(promptData.message);
+		selectedFollowers = [testUser];
 	} else if (sortOption.sortingOption == "Cancel") {
 		console.log(c.yellow("DM followers cancelled.\n"));
 		return;
@@ -612,7 +623,7 @@ async function DMFollowers() {
 			type: "list",
 			name: "prefEditor",
 			message: "How would you like to compose your message?:",
-			choices: ["Command Line", "JSON import", "Default Text Editor", "Cancel"],
+			choices: ["Command Line", "Default Text Editor", "Cancel"],
 		},
 	];
 
@@ -631,10 +642,6 @@ async function DMFollowers() {
 
 		const messageAnswer = await inquirer.prompt(messageInput);
 		message = messageAnswer.message;
-	} else if (preferedEditor.prefEditor == "JSON import") {
-		// TODO: Add json import
-		message =
-			"Hello World! Currently testing an automated twitter DM program. Feel free to ignore.";
 	} else if (preferedEditor.prefEditor == "Default Text Editor") {
 		let composeMessage = [
 			{
@@ -684,53 +691,34 @@ async function DMFollowers() {
 	let failed = 0;
 
 	let handlebarTemplate = Handlebars.compile(message);
+
 	for (i = 0; i < selectedFollowers.length; i++) {
 		try {
 			let handlebarData = selectedFollowers[i];
 			message = handlebarTemplate(handlebarData);
 
-			await new Promise((resolve, reject) => {
-				T.post(
-					"direct_messages/events/new",
-					{
+			await manualRateLimit(
+				() =>
+					asyncPostT("direct_messages/events/new", {
 						event: {
 							type: "message_create",
 							message_create: {
 								target: {
-									recipient_id: selectedFollowers[i],
+									recipient_id: selectedFollowers[i].id,
 								},
 								message_data: {
 									text: message,
 								},
 							},
 						},
-					},
-					async (err, data, response) => {
-						if (err) {
-							if (err["code"] == 88) {
-								console.log("Rate limit reached, waiting 24 hours to continue.");
-								let continue_time = current_time + 87100; // ~24.2 hours  from now
-
-								while (Date.now() < continue_time) {
-									await wait(1800000); // Wait 30 minutes
-									console.log(
-										`${continue_time - Date.now() * 60} minutes remaining`
-									);
-								}
-								console.log("Continuing...");
-							} else {
-								failed += 1;
-								reject(err);
-							}
-						}
-
-						success += 1;
-						bar.tick();
-						resolve(data);
-					}
-				);
-			});
+					}),
+				18000000,
+				0
+			);
+			success++;
+			bar.tick();
 		} catch (err) {
+			failed--;
 			console.log(err);
 		}
 	}
@@ -766,7 +754,7 @@ async function withRateLimit(f, { rateLimitPath }) {
 		return await f();
 	} catch (err) {
 		if (err.code === 88) {
-			console.log("");
+			console.log("Rate limit reached. Waiting...");
 			const data = await asyncGetT("application/rate_limit_status");
 			const resolvesIn = calculateResolutionTime(rateLimitPath(data));
 			await wait(resolvesIn);
@@ -779,9 +767,35 @@ async function withRateLimit(f, { rateLimitPath }) {
 	}
 }
 
+async function manualRateLimit(f, manualCheckRate, totalTime) {
+	try {
+		await f();
+	} catch (err) {
+		if (err.code === 88) {
+			console.log(`Currently waiting for: ${msToMin(totalTime)} minutes.`);
+			await wait(manualCheckRate);
+			totalTime += manualCheckRate / 1000;
+
+			manualRateLimit(f, manualCheckRate, totalTime);
+		} else {
+			// not a rate limit issue, bubble up the error
+			throw err;
+		}
+	}
+}
+
 async function asyncGetT(path, params) {
-	return await new Promise((resolve, reject) =>
+	await new Promise((resolve, reject) =>
 		T.get(path, params, (err, data, response) => {
+			if (err) reject(err);
+			resolve(data);
+		})
+	);
+}
+
+async function asyncPostT(path, params) {
+	await new Promise((resolve, reject) =>
+		T.post(path, params, (err, data, response) => {
 			if (err) reject(err);
 			resolve(data);
 		})
@@ -790,4 +804,25 @@ async function asyncGetT(path, params) {
 
 function calculateResolutionTime(path) {
 	return path.reset - Date.now() / 1000;
+}
+
+function msToMin(ms) {
+	return Math.round(ms / 60000);
+}
+
+async function screenNameToUser(name) {
+	let data = await new Promise((resolve, reject) =>
+		T.get(
+			"users/show",
+			{
+				screen_name: name,
+			},
+			(err, data, response) => {
+				if (err) reject(err);
+				resolve(data);
+			}
+		)
+	);
+
+	return data;
 }

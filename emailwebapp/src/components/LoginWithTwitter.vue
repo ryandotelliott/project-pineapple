@@ -16,7 +16,7 @@ export default {
     };
   },
   async created() {
-    this.response = await axios.get("http://18.216.115.5:3000/oauth/token");
+    this.response = await axios.get("http://webcrate.io/oauth/token");
     this.response = this.response.data;
   },
   methods: {

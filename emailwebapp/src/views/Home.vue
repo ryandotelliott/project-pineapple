@@ -1,7 +1,11 @@
 <template>
   <div class="home">
     <div class="title">Hello there!</div>
-    <LoginWithTwitter />
+    <LoginWithTwitter v-if="!cookie" />
+    <div class="placeholder" v-else>
+      Hello friend, you have succesfully authenticated and your cookie is:
+      {{ cookie }}
+    </div>
   </div>
 </template>
 
@@ -11,8 +15,16 @@ import LoginWithTwitter from "@/components/LoginWithTwitter.vue";
 
 export default {
   name: "Home",
+  data() {
+    return {
+      cookie,
+    };
+  },
   components: {
     LoginWithTwitter,
+  },
+  created() {
+    this.cookie = $cookies.get("access_token");
   },
 };
 </script>

@@ -27,12 +27,14 @@ const instanceSchema = new mongoose.Schema({
   oauth_token_secret: String,
 });
 
+const Instance = mongoose.model("Instance", instanceSchema);
+
 router.get("/token", async (req, res) => {
   const request_data = {
     url: "https://api.twitter.com/oauth/request_token",
     method: "POST",
     data: {
-      oauth_callback: process.env.DOMAIN + "/callback",
+      oauth_callback: process.env.DOMAIN + "/oauth/callback",
     },
   };
 
@@ -60,6 +62,11 @@ router.get("/callback", async (req, res) => {
     },
   };
 
+  const token = {
+    key: req.query.oauth_token,
+    secret: req.query.oauth_verifier
+  }
+
   let response;
   try {
     response = await axios({
@@ -67,7 +74,7 @@ router.get("/callback", async (req, res) => {
       url: request_data.url,
       data: request_data.data,
       headers: oauth.toHeader(
-        oauth.authorize(request_data, req.query.oauth_token)
+        oauth.authorize(request_data, token)
       ),
     });
 
@@ -81,7 +88,7 @@ router.get("/callback", async (req, res) => {
 
     let parsedQuery = queryString.parse(response.data);
 
-    const instance = new instanceSchema({
+    const instance = new Instance({
       cookie_value: cookie,
       oauth_token: parsedQuery.oauth_token,
       oauth_token_secret: parsedQuery.oauth_token_secret,

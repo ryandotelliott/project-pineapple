@@ -64,8 +64,8 @@ router.get("/callback", async (req, res) => {
 
   const token = {
     key: req.query.oauth_token,
-    secret: req.query.oauth_verifier
-  }
+    secret: req.query.oauth_verifier,
+  };
 
   let response;
   try {
@@ -73,9 +73,7 @@ router.get("/callback", async (req, res) => {
       method: "POST",
       url: request_data.url,
       data: request_data.data,
-      headers: oauth.toHeader(
-        oauth.authorize(request_data, token)
-      ),
+      headers: oauth.toHeader(oauth.authorize(request_data, token)),
     });
 
     const cookie =
@@ -96,7 +94,9 @@ router.get("/callback", async (req, res) => {
     await instance.save();
 
     res
-      .cookie("access_token", cookie)
+      .cookie("access_token", cookie, {
+        expires: new Date(Date.now() + 365 * 24 * 3600000),
+      })
       .redirect(process.env.DOMAIN)
       .send();
   } catch (err) {
